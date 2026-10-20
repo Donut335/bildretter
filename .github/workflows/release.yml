@@ -9,6 +9,7 @@ on:
       - "bildretter/**"
       - "Bildretter starten.bat"
       - "requirements.txt"
+      - ".gitattributes"
       - ".github/workflows/release.yml"
   workflow_dispatch:
 
