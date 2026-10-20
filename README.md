@@ -1,5 +1,9 @@
 # Bildretter
 
+## ⬇️ [Neueste Version herunterladen (Bildretter.zip)](https://github.com/Donut335/bildretter/releases/latest/download/Bildretter.zip)
+
+Zip entpacken → `Bildretter starten.bat` doppelklicken. Ältere Versionen: [alle Releases](https://github.com/Donut335/bildretter/releases).
+
 Windows-App zum Retten kaputter JPEG-Fotos, typischerweise gelöschte Bilder, die von einer
 Speicherkarte wiederhergestellt wurden und sich nicht mehr öffnen lassen, weil der Dateikopf fehlt.
 

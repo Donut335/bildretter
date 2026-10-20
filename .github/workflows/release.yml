@@ -1,0 +1,35 @@
+# Builds Bildretter.zip and publishes it as a new release whenever the app changes on main.
+# The newest zip is always at: https://github.com/Donut335/bildretter/releases/latest/download/Bildretter.zip
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bildretter/**"
+      - "Bildretter starten.bat"
+      - "requirements.txt"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip
+        run: git archive --format=zip --prefix=Bildretter/ -o Bildretter.zip HEAD -- bildretter "Bildretter starten.bat" requirements.txt README.md
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$(date -u +%Y.%m.%d)-${{ github.run_number }}"
+          gh release create "$TAG" Bildretter.zip \
+            --title "Bildretter $TAG" \
+            --notes "Neueste Version. Zip entpacken und \`Bildretter starten.bat\` doppelklicken (braucht Python 3.10+). Commit: ${{ github.sha }}" \
+            --latest
