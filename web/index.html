@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bildretter</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='6' width='20' height='14' rx='2' fill='%234f9dff'/%3E%3Crect x='8' y='3' width='8' height='4' rx='1' fill='%234f9dff'/%3E%3Ccircle cx='12' cy='13' r='4' fill='%231e2230'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #1e2230; --card: #2a3042; --accent: #4f9dff; --text: #e8ecf4;
+    --muted: #9aa3b8; --good: #5cd18b; --bad: #ff7a7a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  main { width: 100%; max-width: 560px; text-align: center; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .hidden { display: none !important; }
+
+  #drop {
+    background: var(--card); border: 2px dashed var(--accent); border-radius: 14px;
+    padding: 56px 20px; transition: background .15s, transform .15s; cursor: pointer;
+  }
+  #drop.over { background: #333b52; transform: scale(1.01); }
+  #drop .arrow { font-size: 44px; color: var(--accent); line-height: 1; }
+  #drop strong { display: block; font-size: 19px; margin: 10px 0 4px; }
+  .or { color: var(--muted); font-size: 14px; margin: 6px 0 10px; }
+  button {
+    font: inherit; border: 0; border-radius: 8px; cursor: pointer; padding: 10px 18px;
+  }
+  .primary { background: var(--accent); color: #fff; }
+  .primary:hover { background: #3a85e6; }
+  .privacy { color: var(--muted); font-size: 13px; margin-top: 14px; }
+
+  .spinner { position: relative; width: 120px; height: 120px; margin: 0 auto 22px; }
+  .ring { position: absolute; inset: 0; animation: spin 1.1s linear infinite; }
+  .ring i {
+    position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px;
+    border-radius: 50%; background: var(--accent);
+  }
+  .spinner svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .ring { animation-duration: 3s; } }
+  #working h2 { font-size: 20px; margin: 0; }
+  #working .hint { color: var(--muted); margin: 8px 0 14px; }
+  #status { color: var(--muted); font-size: 13px; min-height: 18px; }
+
+  #done h2 { font-size: 30px; margin: 0; }
+  #summary { margin: 4px 0 14px; }
+  #list {
+    background: var(--card); border-radius: 12px; padding: 10px 14px; text-align: left;
+    max-height: 300px; overflow-y: auto;
+  }
+  #list div { padding: 4px 0; font-size: 14px; display: flex; gap: 8px; }
+  #list .ok { color: var(--good); } #list .no { color: var(--bad); }
+  #download {
+    width: 100%; margin-top: 16px; padding: 14px; font-size: 17px; font-weight: 700;
+    background: var(--good); color: #10301e;
+  }
+  #download:hover { background: #48b877; }
+  #again { margin-top: 10px; background: var(--card); color: var(--text); font-size: 14px; }
+  .error { color: var(--bad); margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <section id="start">
+    <h1>Bildretter</h1>
+    <p class="sub">Kaputte Bilddateien retten</p>
+    <div id="drop" tabindex="0" role="button" aria-label="Dateien auswählen">
+      <div class="arrow">⬇</div>
+      <strong>Dateien hier hineinziehen</strong>
+      <div class="or">oder</div>
+      <button class="primary" type="button" id="pick">Dateien auswählen</button>
+      <input type="file" id="file" multiple class="hidden">
+    </div>
+    <p class="privacy">🔒 Deine Bilder werden nur hier im Browser bearbeitet und nicht hochgeladen.</p>
+  </section>
+
+  <section id="working" class="hidden">
+    <div class="spinner" aria-hidden="true">
+      <div class="ring" id="ring"></div>
+      <svg width="40" height="32" viewBox="0 0 40 32" fill="none" stroke-width="2.5">
+        <rect x="2" y="7" width="36" height="23" rx="3" stroke="#e8ecf4"/>
+        <rect x="13" y="2" width="14" height="5" rx="1" stroke="#e8ecf4"/>
+        <circle cx="20" cy="18" r="7" stroke="#4f9dff"/>
+      </svg>
+    </div>
+    <h2 id="count"></h2>
+    <p class="hint">Bilder reparieren kann einige Minuten dauern.</p>
+    <div id="status"></div>
+  </section>
+
+  <section id="done" class="hidden">
+    <h2>Fertig!</h2>
+    <div id="summary"></div>
+    <div id="list"></div>
+    <button id="download">Fertige Bilder herunterladen</button>
+    <button id="again">Neue Dateien</button>
+  </section>
+  <div id="error" class="error hidden"></div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const show = (id) => ["start", "working", "done"].forEach((s) => $(s).classList.toggle("hidden", s !== id));
+
+  // ring of 12 dots, fading tail
+  for (let i = 0; i < 12; i++) {
+    const dot = document.createElement("i");
+    const a = (i / 12) * 2 * Math.PI, r = 50;
+    dot.style.transform = `translate(${r * Math.cos(a)}px, ${r * Math.sin(a)}px) scale(${0.45 + 0.55 * i / 11})`;
+    dot.style.opacity = 0.2 + 0.8 * i / 11;
+    $("ring").appendChild(dot);
+  }
+
+  // the worker starts loading Python right away so the first repair is faster
+  const worker = new Worker("worker.js");
+  let zipBlob = null;
+
+  worker.onmessage = ({ data }) => {
+    if (data.type === "progress") $("status").textContent = data.text;
+    if (data.type === "done") finished(data);
+    if (data.type === "error") {
+      show("start");
+      $("error").textContent = "Fehler: " + data.text;
+      $("error").classList.remove("hidden");
+    }
+  };
+
+  async function start(files) {
+    files = [...files].filter((f) => f.size > 0);
+    if (!files.length) return;
+    $("error").classList.add("hidden");
+    $("count").textContent = `${files.length} Datei(en) werden repariert …`;
+    $("status").textContent = "Starte …";
+    show("working");
+    const payload = await Promise.all(files.map(async (f) => ({ name: f.name, data: await f.arrayBuffer() })));
+    worker.postMessage({ type: "repair", files: payload }, payload.map((p) => p.data));
+  }
+
+  function finished({ results, zip }) {
+    zipBlob = zip ? new Blob([zip], { type: "application/zip" }) : null;
+    const ok = results.filter((r) => r.ok);
+    $("summary").textContent = `${ok.length} von ${results.length} Datei(en) gerettet`;
+    $("summary").style.color = ok.length ? "var(--good)" : "var(--bad)";
+    $("list").replaceChildren(...results
+      .sort((a, b) => (b.ok - a.ok) || a.name.localeCompare(b.name))
+      .map((r) => {
+        const row = document.createElement("div");
+        const mark = document.createElement("span");
+        mark.className = r.ok ? "ok" : "no";
+        mark.textContent = r.ok ? "✔" : "✖";
+        const text = document.createElement("span");
+        text.textContent = `${r.name} – ${r.message}`;
+        row.append(mark, text);
+        return row;
+      }));
+    $("download").classList.toggle("hidden", !zipBlob);
+    show("done");
+  }
+
+  $("download").onclick = () => {
+    const d = new Date(), p = (n) => String(n).padStart(2, "0");
+    const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = `Gerettete Bilder ${stamp}.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  };
+  $("again").onclick = () => { zipBlob = null; $("file").value = ""; show("start"); };
+
+  const drop = $("drop");
+  $("pick").onclick = (e) => { e.stopPropagation(); $("file").click(); };
+  drop.onclick = () => $("file").click();
+  drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") $("file").click(); };
+  $("file").onchange = (e) => start(e.target.files);
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => { e.stopPropagation(); start(e.dataTransfer.files); });
+  // dropping next to the zone should not open the file in the browser
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => { e.preventDefault(); if (!$("start").classList.contains("hidden")) start(e.dataTransfer.files); });
+</script>
+</body>
+</html>

@@ -1,6 +1,11 @@
 # Bildretter
 
-## ⬇️ [Neueste Version herunterladen (Bildretter.zip)](https://github.com/Donut335/bildretter/releases/latest/download/Bildretter.zip)
+## 🌐 [Direkt im Browser benutzen – ohne Download](https://donut335.github.io/bildretter/)
+
+Die Bilder werden nur im eigenen Browser bearbeitet und nicht hochgeladen. Ergebnis kommt als Zip
+(`Gerettete Bilder <Datum>.zip`) in den Downloads-Ordner.
+
+## ⬇️ [Desktop-Version herunterladen (Bildretter.zip)](https://github.com/Donut335/bildretter/releases/latest/download/Bildretter.zip)
 
 Zip entpacken → `Bildretter starten.bat` doppelklicken. Ältere Versionen: [alle Releases](https://github.com/Donut335/bildretter/releases).
 
@@ -29,7 +34,13 @@ Für Dateien, die nur noch JPEG-Bilddaten (mit Restart-Markern) enthalten:
 - setzt einen passenden JPEG-Kopf davor und speichert nur die vollständigen Bildzeilen.
 
 Code: `bildretter/engine.py` (Reparatur), `bildretter/app.py` (Oberfläche),
-`bildretter/jpegscan.py` (Huffman-Decoder). Entstanden aus `Sandbox/Bilder_Entschluesseln`.
+`bildretter/jpegscan.py` (Huffman-Decoder). Web-Version: `web/index.html` + `web/worker.js`
+führen denselben Python-Code per Pyodide 0.29.5 im Browser aus; `.github/workflows/pages.yml`
+veröffentlicht sie bei jedem Push auf GitHub Pages.
+
+Web-Version lokal testen: `web/*` und `bildretter/{__init__,engine,jpegscan}.py` (nach `py/`)
+in einen Ordner kopieren und dort `python -m http.server` starten (ein Worker braucht http://,
+`file://` geht nicht). Entstanden aus `Sandbox/Bilder_Entschluesseln`.
 
 ## Voraussetzungen
 - Windows, Python 3.10+ auf dem PATH (entwickelt mit 3.10.11)
@@ -46,5 +57,7 @@ Code: `bildretter/engine.py` (Reparatur), `bildretter/app.py` (Oberfläche),
 ## Status
 - 2026-10-20: erste Version. Mit 6 Testdateien geprüft (4 gerettet, 2 korrekt als nicht rettbar
   erkannt), Oberfläche per Skript durchgespielt. Echtes Hineinziehen mit der Maus noch nicht getestet.
+- 2026-10-20: Web-Version. Lokal im Browser mit denselben 6 Dateien geprüft (27 s, Ergebnisse
+  identisch mit der Desktop-Version, Zip-Download geprüft).
 
-**Git:** https://github.com/Donut335/bildretter (privat)
+**Git:** https://github.com/Donut335/bildretter (öffentlich, für GitHub Pages)

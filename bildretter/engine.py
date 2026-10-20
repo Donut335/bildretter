@@ -159,24 +159,30 @@ def _grids(frag):
     return [(y, yok)], [(coefs[:, :, n_y], valid), (coefs[:, :, n_y + 1], valid)]
 
 
-def _edge_rows(blocks, ok):
-    blocks = blocks.astype(np.float32)
+def _edge_rows(blocks, ok, max_pairs, rng):
+    """Design-matrix rows for block boundaries; at most max_pairs block pairs per direction
+    are sampled first, so memory stays small (matters in the browser)."""
     out = []
     pairs = ((blocks[:, :-1], blocks[:, 1:], ok[:, :-1] & ok[:, 1:],
               1.5 * BASIS[:, :, 7] - 0.5 * BASIS[:, :, 6], 1.5 * BASIS[:, :, 0] - 0.5 * BASIS[:, :, 1]),
              (blocks[:-1], blocks[1:], ok[:-1] & ok[1:],
               1.5 * BASIS[:, 7, :] - 0.5 * BASIS[:, 6, :], 1.5 * BASIS[:, 0, :] - 0.5 * BASIS[:, 1, :]))
     for a, b, m, edge_a, edge_b in pairs:
-        f = b[m][:, :, None] * edge_b[None] - a[m][:, :, None] * edge_a[None]
+        idx = np.flatnonzero(m)
+        if len(idx) > max_pairs:
+            idx = np.sort(rng.choice(idx, max_pairs, replace=False))
+        a = a.reshape(-1, 64)[idx].astype(np.float32)
+        b = b.reshape(-1, 64)[idx].astype(np.float32)
+        f = b[:, :, None] * edge_b[None].astype(np.float32) - a[:, :, None] * edge_a[None].astype(np.float32)
         out.append(f.transpose(0, 2, 1).reshape(-1, 64))
     return np.concatenate(out)
 
 
 def fit_quant_table(grids, q_dc):
     """Integer quant table (zigzag) that makes block edges smooth, DC fixed at q_dc."""
-    X = np.concatenate([_edge_rows(b, ok) for b, ok in grids])
-    if len(X) > MAX_EDGE_ROWS:
-        X = X[np.random.default_rng(0).choice(len(X), MAX_EDGE_ROWS, replace=False)]
+    rng = np.random.default_rng(0)
+    max_pairs = MAX_EDGE_ROWS // (16 * len(grids))  # 8 rows per pair, 2 directions
+    X = np.concatenate([_edge_rows(b, ok, max_pairs, rng) for b, ok in grids])
     usage = np.mean(np.concatenate([b[ok] != 0 for b, ok in grids]), axis=0)
     A, y = X[:, 1:], -X[:, 0] * q_dc
     w = np.ones(len(y), np.float32)
