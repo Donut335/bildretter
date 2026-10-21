@@ -9,7 +9,7 @@ const ready = (async () => {
   await py.loadPackage(["numpy", "pillow"]);
   py.FS.mkdirTree("/home/pyodide/bildretter");
   for (const name of ["__init__.py", "jpegscan.py", "engine.py"]) {
-    const res = await fetch(`py/${name}`);
+    const res = await fetch(`py/${name}`, { cache: "no-cache" });  // always the current engine
     if (!res.ok) throw new Error(`py/${name} nicht gefunden`);
     py.FS.writeFile(`/home/pyodide/bildretter/${name}`, await res.text());
   }
@@ -29,7 +29,8 @@ def run_repair(names):
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:  # PNG/JPEG are already compressed
         for r in ok:
             z.write(r.output, "Gerettete Bilder/" + r.output.name)
-    return [{"name": r.name, "ok": r.ok, "message": r.message} for r in results], (buf.getvalue() if ok else None)
+    return [{"name": r.name, "ok": r.ok, "message": r.message, "combined": bool(r.extra.get("combined"))}
+            for r in results], (buf.getvalue() if ok else None)
 `);
   return py;
 })();

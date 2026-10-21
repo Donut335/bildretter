@@ -327,6 +327,7 @@ def process_files(paths, out_dir, progress=lambda text: None):
         except Exception as e:
             results += [Result(f.path.name, False, f"Fehler: {e}") for f in group]
             continue
+        pieces = []
         for f in group:
             progress(f"Repariere {f.path.name}")
             try:
@@ -334,6 +335,77 @@ def process_files(paths, out_dir, progress=lambda text: None):
                 out = out_dir / (f.path.stem.lstrip("_") + "_gerettet.png")
                 im.save(out)
                 results.append(Result(f.path.name, True, f"gerettet ({im.width}×{im.height} Pixel)", out))
+                pieces.append((f.path.stem, im, results[-1]))
             except Exception as e:
                 results.append(Result(f.path.name, False, f"Fehler: {e}"))
+        if len(pieces) >= 2:
+            progress(f"Setze {len(pieces)} Teile zusammen")
+            try:
+                results.append(assemble([(stem, im) for stem, im, _ in pieces], out_dir))
+            except Exception as e:  # keep the single strips as the result instead
+                results.append(Result("Zusammengesetztes Bild", False, f"Fehler: {e}"))
+                continue
+            # only the combined image is handed out; the strips live on inside it
+            for _, _, res in pieces:
+                res.output.unlink(missing_ok=True)
+                res.output = None
+                res.message = "gerettet, im zusammengesetzten Bild enthalten"
     return results
+
+
+# --- assembling strips of the same photo -----------------------------------------------------
+
+GAP_PX = 48  # height of the hatched bar that marks missing data between two strips
+
+
+def _edge_profile(im, top):
+    """Smoothed brightness profile along the top or bottom 16 rows of a strip."""
+    g = np.asarray(im.convert("L"), np.float32)
+    rows = g[:16] if top else g[-16:]
+    return np.convolve(rows.mean(axis=0), np.ones(32) / 32, mode="same")
+
+
+def _fit(a, b):
+    """How well strip b continues below strip a (correlation of the touching edges)."""
+    pa, pb = _edge_profile(a, top=False), _edge_profile(b, top=True)
+    if pa.std() < 1e-6 or pb.std() < 1e-6:
+        return 0.0
+    return float(np.corrcoef(pa, pb)[0, 1])
+
+
+def order_pieces(pieces):
+    """Top-to-bottom order of strips: best chain of matching edges, file order breaks ties."""
+    from itertools import permutations
+    n = len(pieces)
+    score = [[_fit(pieces[i][1], pieces[j][1]) if i != j else 0.0 for j in range(n)] for i in range(n)]
+    chain = lambda order: sum(score[a][b] for a, b in zip(order, order[1:]))
+    by_name = sorted(range(n), key=lambda i: pieces[i][0])
+    if n > 7:  # too many to try every order; trust the file numbering
+        return by_name
+    best = max(permutations(range(n)), key=chain)
+    # camera file numbers follow the recording order, so keep them unless clearly worse
+    return by_name if chain(by_name) >= chain(best) - 0.1 else list(best)
+
+
+def assemble(pieces, out_dir):
+    from PIL import ImageDraw
+    order = order_pieces(pieces)
+    ims = [pieces[i][1].convert("RGB") for i in order]
+    width = max(im.width for im in ims)
+    height = sum(im.height for im in ims) + GAP_PX * (len(ims) - 1)
+    canvas = Image.new("RGB", (width, height), (40, 40, 40))
+    draw = ImageDraw.Draw(canvas)
+    y = 0
+    for k, im in enumerate(ims):
+        canvas.paste(im, (0, y))
+        y += im.height
+        if k < len(ims) - 1:
+            for x in range(-GAP_PX, width, 64):
+                draw.line([(x, y), (x + GAP_PX, y + GAP_PX)], fill=(70, 70, 70), width=6)
+            y += GAP_PX
+    names = [pieces[i][0].lstrip("_") for i in order]
+    out = Path(out_dir) / f"zusammengesetzt_{names[0]}-{names[-1]}.png"
+    canvas.save(out)
+    return Result("Zusammengesetztes Bild", True,
+                  f"aus {len(ims)} Teilen, Lücken grau schraffiert", out,
+                  extra={"combined": True})

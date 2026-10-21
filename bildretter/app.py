@@ -129,10 +129,14 @@ class App:
 
     def show_done(self):
         f = self._new_frame()
-        ok = [r for r in self.results if r.ok]
+        files = [r for r in self.results if not r.extra.get("combined")]
+        ok = [r for r in files if r.ok]
+        combined = sum(1 for r in self.results if r.ok and r.extra.get("combined"))
+        summary = f"{len(ok)} von {len(files)} Datei(en) gerettet"
+        if combined:
+            summary += f" · {combined} zusammengesetztes Bild"
         tk.Label(f, text="Fertig!", font=(FONT, 22, "bold"), fg=TEXT, bg=BG).pack()
-        tk.Label(f, text=f"{len(ok)} von {len(self.results)} Datei(en) gerettet",
-                 font=(FONT, 12), fg=GOOD if ok else BAD, bg=BG).pack(pady=(2, 12))
+        tk.Label(f, text=summary, font=(FONT, 12), fg=GOOD if ok else BAD, bg=BG).pack(pady=(2, 12))
         lst = tk.Frame(f, bg=CARD)
         lst.pack(fill="both", expand=True)
         canvas = tk.Canvas(lst, bg=CARD, highlightthickness=0)
@@ -143,7 +147,7 @@ class App:
         rows.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.pack(side="left", fill="both", expand=True, padx=8, pady=8)
         bar.pack(side="right", fill="y")
-        for r in sorted(self.results, key=lambda r: (not r.ok, r.name)):
+        for r in sorted(self.results, key=lambda r: (not r.ok, not r.extra.get("combined"), r.name)):
             line = tk.Frame(rows, bg=CARD)
             line.pack(fill="x", pady=2)
             tk.Label(line, text="✔" if r.ok else "✖", fg=GOOD if r.ok else BAD, bg=CARD,

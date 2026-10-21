@@ -145,11 +145,14 @@
 
   function finished({ results, zip }) {
     zipBlob = zip ? new Blob([zip], { type: "application/zip" }) : null;
-    const ok = results.filter((r) => r.ok);
-    $("summary").textContent = `${ok.length} von ${results.length} Datei(en) gerettet`;
+    const files = results.filter((r) => !r.combined);
+    const ok = files.filter((r) => r.ok);
+    const combined = results.filter((r) => r.combined && r.ok).length;
+    $("summary").textContent = `${ok.length} von ${files.length} Datei(en) gerettet`
+      + (combined ? ` · ${combined} zusammengesetztes Bild` : "");
     $("summary").style.color = ok.length ? "var(--good)" : "var(--bad)";
     $("list").replaceChildren(...results
-      .sort((a, b) => (b.ok - a.ok) || a.name.localeCompare(b.name))
+      .sort((a, b) => (b.ok - a.ok) || (b.combined - a.combined) || a.name.localeCompare(b.name))
       .map((r) => {
         const row = document.createElement("div");
         const mark = document.createElement("span");
