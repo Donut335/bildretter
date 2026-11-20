@@ -17,7 +17,7 @@ const ready = (async () => {
 import sys, io, zipfile, shutil
 from pathlib import Path
 sys.path.insert(0, "/home/pyodide")
-from bildretter.engine import process_files
+from bildretter.engine import process_files, unassigned_report
 
 def run_repair(names):
     import js
@@ -30,7 +30,7 @@ def run_repair(names):
         for r in ok:
             z.write(r.output, "Gerettete Bilder/" + r.output.name)
     return [{"name": r.name, "ok": r.ok, "message": r.message, "combined": bool(r.extra.get("combined"))}
-            for r in results], (buf.getvalue() if ok else None)
+            for r in results], (buf.getvalue() if ok else None), unassigned_report(results)
 `);
   return py;
 })();
@@ -51,10 +51,10 @@ self.onmessage = async ({ data }) => {
     // let the progress message reach the page before the heavy work blocks this thread
     await new Promise((r) => setTimeout(r, 0));
     const res = py.globals.get("run_repair")(py.toPy(names));
-    const [results, zip] = res.toJs({ dict_converter: Object.fromEntries });
+    const [results, zip, unassigned] = res.toJs({ dict_converter: Object.fromEntries });
     res.destroy();
     const zipBytes = zip ? zip.slice() : null;
-    postMessage({ type: "done", results, zip: zipBytes }, zipBytes ? [zipBytes.buffer] : []);
+    postMessage({ type: "done", results, zip: zipBytes, unassigned }, zipBytes ? [zipBytes.buffer] : []);
   } catch (e) {
     postMessage({ type: "error", text: String(e && e.message || e) });
   }

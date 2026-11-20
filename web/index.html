@@ -62,6 +62,11 @@
     background: var(--good); color: #10301e;
   }
   #download:hover { background: #48b877; }
+  #txt {
+    display: block; margin: 12px auto 0; padding: 4px 8px; background: none;
+    color: #8cc8ff; font-size: 14px; text-decoration: underline; text-underline-offset: 3px;
+  }
+  #txt:hover { color: #b5dcff; }
   #again { margin-top: 10px; background: var(--card); color: var(--text); font-size: 14px; }
   .error { color: var(--bad); margin-top: 12px; }
 </style>
@@ -100,6 +105,7 @@
     <div id="summary"></div>
     <div id="list"></div>
     <button id="download">Fertige Bilder herunterladen</button>
+    <button id="txt">TXT mit nicht kompatiblen Bildnamen herunterladen</button>
     <button id="again">Neue Dateien</button>
   </section>
   <div id="error" class="error hidden"></div>
@@ -120,7 +126,7 @@
 
   // the worker starts loading Python right away so the first repair is faster
   const worker = new Worker("worker.js");
-  let zipBlob = null;
+  let zipBlob = null, unassignedText = null;
 
   worker.onmessage = ({ data }) => {
     if (data.type === "progress") $("status").textContent = data.text;
@@ -143,8 +149,9 @@
     worker.postMessage({ type: "repair", files: payload }, payload.map((p) => p.data));
   }
 
-  function finished({ results, zip }) {
+  function finished({ results, zip, unassigned }) {
     zipBlob = zip ? new Blob([zip], { type: "application/zip" }) : null;
+    unassignedText = unassigned || null;
     const files = results.filter((r) => !r.combined);
     const ok = files.filter((r) => r.ok);
     const combined = results.filter((r) => r.combined && r.ok).length;
@@ -164,19 +171,24 @@
         return row;
       }));
     $("download").classList.toggle("hidden", !zipBlob);
+    $("txt").classList.toggle("hidden", !unassignedText);
     show("done");
   }
 
-  $("download").onclick = () => {
+  function save(blob, name, ext) {
     const d = new Date(), p = (n) => String(n).padStart(2, "0");
     const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(zipBlob);
-    a.download = `Gerettete Bilder ${stamp}.zip`;
+    a.href = URL.createObjectURL(blob);
+    a.download = `${name} ${stamp}.${ext}`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-  };
-  $("again").onclick = () => { zipBlob = null; $("file").value = ""; show("start"); };
+  }
+  $("download").onclick = () => save(zipBlob, "Gerettete Bilder", "zip");
+  // BOM + CRLF so umlauts and line breaks show correctly in Windows Notepad
+  $("txt").onclick = () => save(new Blob(["\ufeff" + unassignedText.replaceAll("\n", "\r\n")], { type: "text/plain" }),
+                                "Nicht zugeordnete Bilder", "txt");
+  $("again").onclick = () => { zipBlob = unassignedText = null; $("file").value = ""; show("start"); };
 
   const drop = $("drop");
   $("pick").onclick = (e) => { e.stopPropagation(); $("file").click(); };

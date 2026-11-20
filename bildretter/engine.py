@@ -12,6 +12,7 @@ import re
 import struct
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -334,7 +335,8 @@ def process_files(paths, out_dir, progress=lambda text: None):
                 im = rebuild(f, tables)
                 out = out_dir / (f.path.stem.lstrip("_") + "_gerettet.png")
                 im.save(out)
-                results.append(Result(f.path.name, True, f"gerettet ({im.width}×{im.height} Pixel)", out))
+                results.append(Result(f.path.name, True, f"gerettet ({im.width}×{im.height} Pixel)", out,
+                                      extra={"piece": True}))
                 pieces.append((f.path.stem, im, results[-1]))
             except Exception as e:
                 results.append(Result(f.path.name, False, f"Fehler: {e}"))
@@ -343,7 +345,7 @@ def process_files(paths, out_dir, progress=lambda text: None):
             try:
                 results.append(assemble([(stem, im) for stem, im, _ in pieces], out_dir))
             except Exception as e:  # keep the single strips as the result instead
-                results.append(Result("Zusammengesetztes Bild", False, f"Fehler: {e}"))
+                results.append(Result("Zusammengesetztes Bild", False, f"Fehler: {e}", extra={"combined": True}))
                 continue
             # only the combined image is handed out; the strips live on inside it
             for _, _, res in pieces:
@@ -351,6 +353,21 @@ def process_files(paths, out_dir, progress=lambda text: None):
                 res.output = None
                 res.message = "gerettet, im zusammengesetzten Bild enthalten"
     return results
+
+
+def unassigned_report(results):
+    """Text listing the files that did not end up in an assembled image, or None if there are none."""
+    failed = [r for r in results if not r.ok and not r.extra.get("combined")]
+    single = [r for r in results if r.extra.get("piece") and r.output]
+    if not failed and not single:
+        return None
+    lines = [f"Bildretter – nicht zugeordnete Dateien ({datetime.now():%d.%m.%Y %H:%M})", ""]
+    if failed:
+        lines += ["Nicht rettbar:"] + [f"  {r.name} – {r.message}" for r in failed] + [""]
+    if single:
+        lines += ["Gerettet, aber keinem anderen Teil zugeordnet (einzeln als Bild exportiert):"]
+        lines += [f"  {r.name} – {r.output.name}" for r in single] + [""]
+    return "\n".join(lines)
 
 
 # --- assembling strips of the same photo -----------------------------------------------------

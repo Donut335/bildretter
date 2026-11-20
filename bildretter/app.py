@@ -12,7 +12,7 @@ from tkinter import filedialog
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
-from .engine import process_files
+from .engine import process_files, unassigned_report
 
 BG = "#1e2230"
 CARD = "#2a3042"
@@ -21,6 +21,7 @@ TEXT = "#e8ecf4"
 MUTED = "#9aa3b8"
 GOOD = "#5cd18b"
 BAD = "#ff7a7a"
+LINK = "#8cc8ff"
 FONT = "Segoe UI"
 
 
@@ -160,6 +161,11 @@ class App:
             tk.Button(btns, text="Fertige Bilder herunterladen", font=(FONT, 13, "bold"), bg=GOOD,
                       fg="#10301e", activebackground="#48b877", relief="flat", padx=18, pady=10,
                       cursor="hand2", command=self.download).pack(fill="x")
+        if unassigned_report(self.results):
+            link = tk.Label(btns, text="TXT mit nicht kompatiblen Bildnamen herunterladen", font=(FONT, 10, "underline"),
+                            fg=LINK, bg=BG, cursor="hand2")
+            link.pack(pady=(10, 0))
+            link.bind("<Button-1>", lambda e: self.download_unassigned())
         tk.Button(btns, text="Neue Dateien", font=(FONT, 10), bg=CARD, fg=TEXT, relief="flat",
                   padx=12, pady=6, cursor="hand2", command=self.reset).pack(pady=(10, 0))
 
@@ -189,6 +195,12 @@ class App:
         self.spinner.stop()
         self.results = results
         self.show_done()
+
+    def download_unassigned(self):
+        stamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+        target = downloads_folder() / f"Nicht zugeordnete Bilder {stamp}.txt"
+        target.write_text(unassigned_report(self.results), encoding="utf-8-sig")
+        os.startfile(target)
 
     def download(self):
         stamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")

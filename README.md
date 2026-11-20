@@ -19,6 +19,9 @@ Speicherkarte wiederhergestellt wurden und sich nicht mehr öffnen lassen, weil 
 3. Warten, bis das drehende Logo verschwindet („Bilder reparieren kann einige Minuten dauern“).
 4. **„Fertige Bilder herunterladen“** → legt im Downloads-Ordner einen Ordner
    `Gerettete Bilder <Datum Uhrzeit>` mit den geretteten Bildern (PNG) an und öffnet ihn.
+5. Gibt es Dateien, die in keinem zusammengesetzten Bild gelandet sind (nicht rettbar oder ohne
+   passendes Gegenstück), erscheint darunter der hellblaue Link **„TXT mit nicht kompatiblen
+   Bildnamen herunterladen“** → `Nicht zugeordnete Bilder <Datum Uhrzeit>.txt` mit den Dateinamen.
 
 Intakte JPEGs werden unverändert mitkopiert. Dateien ohne erkennbare Bilddaten (z.B.
 verschlüsselt) werden in der Ergebnisliste als nicht rettbar markiert.
@@ -71,5 +74,7 @@ in einen Ordner kopieren und dort `python -m http.server` starten (ein Worker br
 - 2026-10-21: Zusammensetzen zusammengehöriger Teile; Ausgabe nur noch das zusammengesetzte Bild.
   Mit den 6 Testdateien in Desktop-App und Web-Version geprüft (Reihenfolge 54→55→56→57 auch bei
   umgekehrter Eingabe; allein aus den Bildkanten eindeutig: 0,92 vs. 0,71).
+- 2026-11-20: TXT-Liste der nicht zugeordneten Dateien (hellblauer Link unter dem Download-Knopf).
+  In Web-Version (lokal, 6 Testdateien) und Desktop-App (per Skript) geprüft.
 
 **Git:** https://github.com/Donut335/bildretter (öffentlich, für GitHub Pages)
